@@ -35,7 +35,7 @@ preserved; removing the older executable input does not redefine profile 0.2.
 
 ## Version 0.3.0a1
 
-Version 0.3.0a1 adds [point fingerprints and verification reports](profile.md#point-fingerprints).
+Version 0.3.0a1 adds [point and model fingerprints and verification reports](profile.md#point-and-model-fingerprints).
 It removes `derive_audit_tm`, `AuditArtifact` and the `audit-tm-v1`
 publication format, which existed only for restricted preview models. Point
 tables now include fingerprints. The `modpoll:audit` plan is unchanged.

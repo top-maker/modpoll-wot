@@ -16,6 +16,7 @@ from . import (
 )
 from .loading import _document_kind, load_document
 from .profile import parse_parameters
+from .verification import combine_fingerprints
 
 
 def _write_json(path, document):
@@ -66,7 +67,7 @@ def main():
     )
     _instance_options(export)
     prints = commands.add_parser(
-        "fingerprint", help="Print point fingerprints of a TM or TD as JSON"
+        "fingerprint", help="Print model and point fingerprints of a TM or TD as JSON"
     )
     prints.add_argument("input", help="Local JSON file")
     report = commands.add_parser(
@@ -99,8 +100,9 @@ def main():
             _write_json(output, document)
             print(f"Generated starter TM: {output} (no executable Modbus mappings)")
         elif args.command == "fingerprint":
-            payload = Path(args.input).read_bytes()
-            print(json.dumps(point_fingerprints(payload), indent=2, ensure_ascii=False))
+            points = point_fingerprints(Path(args.input).read_bytes())
+            result = {"model": combine_fingerprints(points.values()), "points": points}
+            print(json.dumps(result, indent=2, ensure_ascii=False))
         elif args.command == "validate-report":
             phase = "Verification report"
             document = load_document(args.input)

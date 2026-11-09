@@ -12,9 +12,10 @@
     "model": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["sha256", "source"],
+      "required": ["sha256", "fingerprint", "source"],
       "properties": {
         "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "fingerprint": { "type": "string", "pattern": "^mf1:[0-9a-f]{64}$" },
         "source": { "enum": ["catalog", "workspace", "local"] },
         "ref": { "type": "string", "minLength": 1, "maxLength": 128 },
         "path": {

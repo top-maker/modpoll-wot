@@ -9,7 +9,13 @@ import sys
 
 import pytest
 
-from modpoll_wot import ReportError, export_td, point_fingerprints, validate_report
+from modpoll_wot import (
+    ReportError,
+    export_td,
+    model_fingerprint,
+    point_fingerprints,
+    validate_report,
+)
 from modpoll_wot.profile import instantiate
 from modpoll_wot.verification import canonical_point, fingerprint
 
@@ -35,9 +41,12 @@ def test_shared_vectors_pin_the_canonical_encoding():
             expected["fingerprint"]
             == "pf1:" + sha256(canonical.encode()).hexdigest()
         )
-    assert vectors["points"].keys() == point_fingerprints(
-        (FIXTURES / vectors["model"]).read_bytes()
-    ).keys()
+    payload = (FIXTURES / vectors["model"]).read_bytes()
+    assert vectors["points"].keys() == point_fingerprints(payload).keys()
+    unique = sorted({point["fingerprint"] for point in vectors["points"].values()})
+    encoded = json.dumps(unique, separators=(",", ":")).encode()
+    assert vectors["fingerprint"] == "mf1:" + sha256(encoded).hexdigest()
+    assert model_fingerprint(payload) == vectors["fingerprint"]
 
 
 def test_instance_data_and_spelling_do_not_change_fingerprints():
@@ -55,9 +64,14 @@ def test_instance_data_and_spelling_do_not_change_fingerprints():
     form = props["signed"]["forms"][0]
     form["modv:mostSignificantByte"] = True
     form["modv:mostSignificantWord"] = True
+    edited["title"] = "Forked pilot"
+    edited["description"] = "Cosmetic fork"
+    edited["modpoll:acquisition"][0]["modpoll:members"].reverse()
     renamed = point_fingerprints(edited)
     assert renamed["total"] == baseline["counter"]
     assert renamed["signed"] == baseline["signed"]
+    assert model_fingerprint(edited) == model_fingerprint(source)
+    assert model_fingerprint(td) == model_fingerprint(source)
 
 
 @pytest.mark.parametrize(
@@ -74,6 +88,7 @@ def test_mapping_changes_split_fingerprints(field, value):
     if field == "modv:type":
         source["properties"]["signed"]["minimum"] = 0
     assert point_fingerprints(source)["signed"] != point_fingerprints(numeric())["signed"]
+    assert model_fingerprint(source) != model_fingerprint(numeric())
 
 
 def test_multiplier_is_compared_as_a_decimal():
@@ -96,6 +111,13 @@ def test_write_only_points_have_no_fingerprint():
     assert "counter" not in point_fingerprints(source)
 
 
+def test_adding_or_removing_a_readable_point_changes_the_model_fingerprint():
+    source = numeric()
+    del source["properties"]["signed"]
+    source["modpoll:acquisition"][0]["modpoll:members"].remove("signed")
+    assert model_fingerprint(source) != model_fingerprint(numeric())
+
+
 def report_for(payload):
     prints = point_fingerprints(payload)
     return {
@@ -103,6 +125,7 @@ def report_for(payload):
         "device": "example/numeric-pilot",
         "model": {
             "sha256": sha256(payload).hexdigest(),
+            "fingerprint": model_fingerprint(payload),
             "source": "catalog",
             "ref": "f" * 40,
             "path": "models/numeric-pilot.tm.json",
@@ -139,6 +162,11 @@ def test_a_report_validates_against_its_exact_model():
     with pytest.raises(ReportError, match="/model/sha256"):
         validate_report(report, model=other)
 
+    stale = deepcopy(report)
+    stale["model"]["fingerprint"] = "mf1:" + "0" * 64
+    with pytest.raises(ReportError, match="/model/fingerprint"):
+        validate_report(stale, model=payload)
+
     forked = deepcopy(report)
     forked["points"][0]["fingerprint"] = "pf1:" + "0" * 64
     with pytest.raises(ReportError, match="/points/0/fingerprint"):
@@ -174,6 +202,8 @@ def mutate(path, value):
         (("points", 1, "expected"), "confirmed"),
         (("points", 0, "fingerprint"), "sha256:" + "0" * 64),
         (("model", "ref"), KeyError),
+        (("model", "fingerprint"), KeyError),
+        (("model", "fingerprint"), "pf1:" + "0" * 64),
         (("model", "ref"), "main"),
         (("device",), "Example/Numeric"),
         (("date",), "2026-11-09T10:00:00Z"),
@@ -217,7 +247,10 @@ def test_cli_fingerprints_and_validates_reports(tmp_path):
 
     printed = cli("fingerprint", NUMERIC)
     assert printed.returncode == 0
-    assert json.loads(printed.stdout) == point_fingerprints(NUMERIC.read_bytes())
+    assert json.loads(printed.stdout) == {
+        "model": model_fingerprint(NUMERIC.read_bytes()),
+        "points": point_fingerprints(NUMERIC.read_bytes()),
+    }
 
     report = tmp_path / "report.json"
     report.write_text(json.dumps(report_for(NUMERIC.read_bytes())))

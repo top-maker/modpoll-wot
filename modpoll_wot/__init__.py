@@ -5,11 +5,17 @@ from .loading import AuditPlan, Model, load_model, loads_model, parse_model
 from .validation import ModelValidationError, validate_standard
 from .profile import instantiate, export_td, parse_parameters
 from .delivery import project_point_table
-from .verification import ReportError, point_fingerprints, validate_report
+from .verification import (
+    ReportError,
+    model_fingerprint,
+    point_fingerprints,
+    validate_report,
+)
 
 __all__ = [
     "parse_parameters",
     "ReportError",
+    "model_fingerprint",
     "point_fingerprints",
     "validate_report",
     "project_point_table",

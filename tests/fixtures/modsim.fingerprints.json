@@ -1,6 +1,7 @@
 {
   "model": "modsim.tm.json",
-  "version": "pf1",
+  "version": "pf1+mf1",
+  "fingerprint": "mf1:72518eae5d2994efe3ea56fdd26d737c4ef0f4b4f004bc329e24caa2686a2e97",
   "points": {
     "coil01-08": {
       "canonical": "{\"modv:address\":0,\"modv:entity\":\"Coil\",\"modv:mostSignificantByte\":true,\"modv:mostSignificantWord\":true,\"modv:quantity\":8,\"modv:type\":\"xsd:boolean\",\"type\":\"array\"}",

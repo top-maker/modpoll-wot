@@ -13,6 +13,7 @@ from .loading import _loads_document
 from .profile import instantiate
 
 FINGERPRINT_VERSION = "pf1"
+MODEL_FINGERPRINT_VERSION = "mf1"
 REPORT_VERSION = 1
 # Form fields that decide which bytes are read and how they become a value.
 OPTIONAL_FIELDS = (
@@ -101,6 +102,21 @@ def point_fingerprints(model) -> dict[str, str]:
     return result
 
 
+def combine_fingerprints(fingerprints) -> str:
+    """Hash a collection of point fingerprints into a model fingerprint."""
+    encoded = json.dumps(sorted(set(fingerprints)), separators=(",", ":")).encode()
+    return f"{MODEL_FINGERPRINT_VERSION}:{sha256(encoded).hexdigest()}"
+
+
+def model_fingerprint(model) -> str:
+    """Return the fingerprint of the set of readable point mappings of a model.
+
+    Cosmetic edits, renames and instance data keep the fingerprint, so an
+    unmodified fork shares it with its parent.
+    """
+    return combine_fingerprints(point_fingerprints(model).values())
+
+
 @lru_cache(maxsize=1)
 def _report_validator():
     schema = json.loads(
@@ -129,6 +145,8 @@ def validate_report(report, *, model: bytes | None = None):
     if sha256(model).hexdigest() != report["model"]["sha256"]:
         raise ReportError("/model/sha256: does not match the model bytes")
     expected = point_fingerprints(model)
+    if combine_fingerprints(expected.values()) != report["model"]["fingerprint"]:
+        raise ReportError("/model/fingerprint: does not match the model")
     for index, point in enumerate(report["points"]):
         actual = expected.get(point["property"])
         if actual is None:

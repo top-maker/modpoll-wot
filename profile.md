@@ -181,16 +181,21 @@ A writable flag records access without inferring a write function code.
 Multipliers are decimal strings when present. Each readable row carries its
 point fingerprint; write-only rows carry null.
 
-## Point fingerprints
+## Point and model fingerprints
 
 A point fingerprint identifies how one readable property is acquired and
-decoded, independently of the file that contains it. Verification results are
-aggregated by fingerprint, so a forked model keeps the statistics of every
-point whose mapping it did not change.
+decoded, independently of the file that contains it. A model fingerprint
+identifies the set of readable point mappings of a whole model. Verification
+statistics are keyed by the model fingerprint: titles, descriptions, units,
+property names and member order do not change it, so an unmodified fork shares
+its parent's statistics, while any change to a read mapping, or adding or
+removing a readable point, starts a new one.
 
 `point_fingerprints(model)` accepts a TM or TD, as a parsed document or exact
 bytes, and returns `{property: fingerprint}` for every readable property.
-`modpoll-wot fingerprint FILE` prints the same mapping as JSON. The model is
+`model_fingerprint(model)` returns the model fingerprint.
+`modpoll-wot fingerprint FILE` prints both as JSON
+(`{"model": ..., "points": {...}}`). The model is
 instantiated without instance arguments, then each property's read Form is
 reduced to this canonical object:
 
@@ -209,9 +214,14 @@ characters unescaped. Property names, titles, descriptions, units, ranges,
 write Forms, endpoints and Unit IDs do not contribute. Flags that a type cannot
 use, such as word order for a single register, are kept as written: equivalent
 spellings may split statistics but never merge different mappings.
+The model fingerprint is `mf1:` followed by the SHA-256 hex digest of the
+sorted, deduplicated point fingerprints serialized as a JSON array without
+whitespace. Aliases with identical mappings count once; write-only properties
+do not contribute.
 [tests/fixtures/modsim.fingerprints.json](tests/fixtures/modsim.fingerprints.json)
-pins the canonical strings and fingerprints of the 37-property fixture for
-other implementations. Changing the canonical form requires a new prefix.
+pins the canonical strings, point fingerprints and model fingerprint of the
+37-property fixture for other implementations. Changing either canonical form
+requires a new prefix.
 
 ## Verification reports
 
@@ -220,7 +230,8 @@ A verification report records one hardware reading of a model. Its schema is
 (JSON Schema 2020-12). A report carries:
 
 - `device`: the catalog device ID `vendor/model`.
-- `model`: the SHA-256 of the exact TM bytes and its source. Catalog models add
+- `model`: the SHA-256 of the exact TM bytes, its model fingerprint and its
+  source. Catalog models add
   the 40-character catalog commit and package-relative `models/*.tm.json`
   path. Workspace models add an opaque version reference. Local models add
   neither.
@@ -233,6 +244,11 @@ A verification report records one hardware reading of a model. Its schema is
   the user's judgment of the value (`confirmed`, `rejected` or `unchecked`).
   Only a successful read can be judged.
 
+A report is a full read when its points cover every readable property of the
+model and every read is `ok`, so that executing the whole
+`modpoll:acquisition` plan raised no error. Receiving services derive this
+from the stored per-point results.
+
 The schema rejects every other field. Endpoints, Unit IDs, serial numbers and
 read values therefore cannot be sent. Configuration notes are free text, so
 the reporting tool shows the report for review before upload. Review
@@ -240,5 +256,5 @@ markers and account data belong to the receiving service, not the report.
 
 `validate_report(report, model=tm_bytes)` and
 `modpoll-wot validate-report REPORT [--model TM]` check the schema and unique
-properties. With the model, they also check its hash and that every point names
-a readable property with a matching fingerprint.
+properties. With the model, they also check its hash and model fingerprint, and that
+every point names a readable property with a matching fingerprint.
