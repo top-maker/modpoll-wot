@@ -1,3 +1,9 @@
+> **This repository has moved.** modpoll-wot is developed in the
+> [modpoll repository](https://github.com/top-maker/modpoll/tree/v2/packages/modpoll-wot)
+> (`packages/modpoll-wot` on branch `v2`), together with modpoll and modsim, and released from there to
+> [PyPI](https://pypi.org/project/modpoll-wot/) with tags `modpoll-wot-v<version>`. This repository is
+> archived; its full history up to 0.6.0a2 was carried over.
+
 # modpoll-wot (experimental)
 
 An independently versioned TM/TD configuration interpreter for
